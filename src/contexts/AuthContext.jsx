@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, getCurrentUserTenant, SHARED_SCHEMA } from '../config/supabase';
+import { supabase, SHARED_SCHEMA } from '../config/supabase';
 
 const AuthContext = createContext({});
 
@@ -16,22 +16,52 @@ export const AuthProvider = ({ children }) => {
   const [userTenant, setUserTenant] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to get current user's tenant info
+  const getCurrentUserTenant = async (userId) => {
+    if (!userId) return null;
+    
+    console.log("Getting tenant info for user:", userId);
+    
+    try {
+      const { data, error } = await supabase
+        .from(`${SHARED_SCHEMA}.tenant_users`)
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      
+      console.log("Tenant data response:", { data, error });
+      
+      if (error) {
+        console.error("Error getting tenant data:", error);
+        return null;
+      }
+      
+      return data;
+    } catch (err) {
+      console.error("Exception getting tenant data:", err);
+      return null;
+    }
+  };
+
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        try {
-          const tenantData = await getCurrentUserTenant();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log("Initial session:", session?.user?.email);
+        
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const tenantData = await getCurrentUserTenant(session.user.id);
+          console.log("Initial tenant data:", tenantData);
           setUserTenant(tenantData);
-        } catch (error) {
-          console.error("Error getting tenant data:", error);
         }
+      } catch (error) {
+        console.error("Error getting initial session:", error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     getInitialSession();
@@ -43,13 +73,9 @@ export const AuthProvider = ({ children }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          try {
-            const tenantData = await getCurrentUserTenant();
-            console.log("Got tenant data:", tenantData);
-            setUserTenant(tenantData);
-          } catch (error) {
-            console.error("Error getting tenant data on auth change:", error);
-          }
+          const tenantData = await getCurrentUserTenant(session.user.id);
+          console.log("Auth change tenant data:", tenantData);
+          setUserTenant(tenantData);
         } else {
           setUserTenant(null);
         }
@@ -73,6 +99,11 @@ export const AuthProvider = ({ children }) => {
         console.error("Sign in error:", error);
       } else {
         console.log("Sign in successful:", data);
+        // Immediately try to get tenant info after successful login
+        if (data.user) {
+          const tenantData = await getCurrentUserTenant(data.user.id);
+          setUserTenant(tenantData);
+        }
       }
       
       return { data, error };
@@ -99,8 +130,24 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    try {
+      console.log("Attempting to sign out");
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Sign out error:", error);
+      } else {
+        console.log("Sign out successful");
+        // Clear state on successful logout
+        setUser(null);
+        setUserTenant(null);
+      }
+      
+      return { error };
+    } catch (error) {
+      console.error("Unexpected error during sign out:", error);
+      return { error };
+    }
   };
 
   // Function to manage users (for superadmin)

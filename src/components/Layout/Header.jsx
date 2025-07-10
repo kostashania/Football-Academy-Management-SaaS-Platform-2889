@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import SafeIcon from '../../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const { FiMenu, FiBell, FiUser, FiLogOut } = FiIcons;
 
@@ -10,7 +11,20 @@ const Header = ({ onMenuToggle }) => {
   const { user, userTenant, signOut } = useAuth();
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      console.log("Signing out...");
+      const { error } = await signOut();
+      if (error) {
+        console.error("Sign out error:", error);
+        toast.error("Failed to sign out");
+      } else {
+        toast.success("Signed out successfully");
+        // Redirect happens automatically via protected route
+      }
+    } catch (error) {
+      console.error("Unexpected error during sign out:", error);
+      toast.error("An error occurred during sign out");
+    }
   };
 
   return (
@@ -28,7 +42,7 @@ const Header = ({ onMenuToggle }) => {
               Football Management
             </h1>
           </div>
-
+          
           <div className="flex items-center space-x-4">
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -40,11 +54,11 @@ const Header = ({ onMenuToggle }) => {
                 3
               </span>
             </motion.button>
-
+            
             <div className="flex items-center space-x-3">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{user?.email}</p>
-                <p className="text-xs text-gray-500 capitalize">{userTenant?.role}</p>
+                <p className="text-sm font-medium text-gray-900">{user?.email || 'User'}</p>
+                <p className="text-xs text-gray-500 capitalize">{userTenant?.role || 'Loading...'}</p>
               </div>
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                 <SafeIcon icon={FiUser} className="h-4 w-4 text-gray-600" />

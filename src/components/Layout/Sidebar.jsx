@@ -6,19 +6,36 @@ import * as FiIcons from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { ROLES } from '../../config/supabase';
 
-const { 
-  FiUsers, FiCalendar, FiTrendingUp, FiFileText, 
-  FiTarget, FiSettings, FiHome, FiMessageSquare,
-  FiAward, FiClock, FiBarChart2, FiUser
+const {
+  FiUsers,
+  FiCalendar,
+  FiTrendingUp,
+  FiFileText,
+  FiTarget,
+  FiSettings,
+  FiHome,
+  FiMessageSquare,
+  FiAward,
+  FiClock,
+  FiBarChart2,
+  FiUser
 } = FiIcons;
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { userTenant } = useAuth();
-  
+
   const getMenuItems = () => {
-    if (!userTenant) return [];
+    if (!userTenant) {
+      console.log("No userTenant data available for menu");
+      // Provide a default menu when userTenant is not available yet
+      return [
+        { icon: FiHome, label: 'Dashboard', path: '/dashboard' },
+        { icon: FiUsers, label: 'Users', path: '/users' }
+      ];
+    }
     
-    const role = userTenant.role;
+    console.log("Building menu for role:", userTenant.role);
+    
     const baseItems = [
       { icon: FiHome, label: 'Dashboard', path: '/dashboard' },
     ];
@@ -26,6 +43,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     const roleBasedItems = {
       [ROLES.SUPERADMIN]: [
         { icon: FiUsers, label: 'Tenants', path: '/tenants' },
+        { icon: FiUsers, label: 'Users', path: '/users' },
         { icon: FiMessageSquare, label: 'Global Ads', path: '/global-ads' },
         { icon: FiBarChart2, label: 'Subscriptions', path: '/subscriptions' },
       ],
@@ -67,7 +85,9 @@ const Sidebar = ({ isOpen, onClose }) => {
       ]
     };
 
-    return [...baseItems, ...(roleBasedItems[role] || [])];
+    // Add role-specific items if they exist, otherwise use base items only
+    const roleItems = roleBasedItems[userTenant.role] || [];
+    return [...baseItems, ...roleItems];
   };
 
   const menuItems = getMenuItems();
@@ -99,7 +119,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Football SaaS</h1>
-              <p className="text-sm text-gray-500">{userTenant?.schema_name}</p>
+              <p className="text-sm text-gray-500">{userTenant?.schema_name || 'Loading...'}</p>
             </div>
           </div>
         </div>
