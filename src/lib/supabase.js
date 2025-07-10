@@ -1,4 +1,3 @@
-```javascript
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://bjelydvroavsqczejpgd.supabase.co';
@@ -35,50 +34,7 @@ export const executeInSchema = async (schema, query) => {
   }
 };
 
-// Create stored procedure for schema creation
-const createSchemaFunction = `
-CREATE OR REPLACE FUNCTION create_tenant_schema(schema_name TEXT)
-RETURNS void AS $$
-BEGIN
-  -- Create schema if it doesn't exist
-  EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I', schema_name);
-  
-  -- Create tables
-  EXECUTE format('
-    CREATE TABLE IF NOT EXISTS %I.players (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      first_name TEXT NOT NULL,
-      last_name TEXT NOT NULL,
-      -- other columns...
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    )', schema_name);
-    
-  -- Add other tables as needed
-  -- Enable RLS
-  EXECUTE format('ALTER TABLE %I.players ENABLE ROW LEVEL SECURITY', schema_name);
-  
-  -- Create RLS policies
-  EXECUTE format('
-    CREATE POLICY "Enable read for users in same tenant" ON %I.players
-    FOR SELECT USING (
-      EXISTS (
-        SELECT 1 FROM plrs_saas.tenant_users
-        WHERE user_id = auth.uid()
-        AND schema_name = %L
-      )
-    )', schema_name, schema_name);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-`;
-
-// Run this once to create the function
-export const initializeDatabase = async () => {
-  const { error } = await supabase.rpc('create_schema_function', {
-    function_sql: createSchemaFunction
-  });
-  
-  if (error) {
-    console.error('Error creating schema function:', error);
-  }
+// Helper function to query tables in tenant schemas
+export const fromSchema = (schema, table) => {
+  return supabase.from(`${schema}.${table}`);
 };
-```
