@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 const { FiTarget, FiMail, FiLock, FiEye, FiEyeOff } = FiIcons;
 
 const LoginForm = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('members@sportiko.eu');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,13 +19,16 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
+      console.log("Attempting login with:", email);
       const { error } = await signIn(email, password);
       if (error) {
-        toast.error(error.message);
+        console.error("Login error:", error);
+        toast.error(error.message || "Login failed");
       } else {
         toast.success('Welcome back!');
       }
     } catch (error) {
+      console.error("Unexpected login error:", error);
       toast.error('An error occurred during login');
     } finally {
       setLoading(false);
@@ -103,7 +106,7 @@ const LoginForm = () => {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            Demo accounts available for testing different roles
+            Email: members@sportiko.eu
           </p>
         </div>
       </motion.div>

@@ -6,6 +6,7 @@ import MainLayout from './components/Layout/MainLayout';
 import LoginForm from './components/Auth/LoginForm';
 import Dashboard from './pages/Dashboard';
 import Players from './pages/Players';
+import Users from './pages/Users';
 import './App.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -40,6 +41,7 @@ const AppRoutes = () => {
                 <Route path="/" element={<Navigate to="/dashboard" />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/players" element={<Players />} />
+                <Route path="/users" element={<Users />} />
                 {/* Add more routes as needed */}
               </Routes>
             </MainLayout>
