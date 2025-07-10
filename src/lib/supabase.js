@@ -1,3 +1,4 @@
+```javascript
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://bjelydvroavsqczejpgd.supabase.co';
@@ -12,63 +13,72 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true
+  },
+  db: {
+    schema: 'public'
   }
 });
 
-// Database schema constants
-export const SHARED_SCHEMA = 'plrs_saas';
-export const TENANT_PREFIX = 'club';
-
-// User roles
-export const ROLES = {
-  SUPERADMIN: 'superadmin',
-  TENANTADMIN: 'tenantadmin',
-  TRAINER: 'trainer',
-  TRAINING_SUPERVISOR: 'training_supervisor',
-  MATCH_SUPERVISOR: 'match_supervisor',
-  USER: 'user',
-  PLAYER: 'player'
-};
-
-// Helper function to get current user's tenant info
-export const getCurrentUserTenant = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  
+// Execute query in specific schema
+export const executeInSchema = async (schema, query) => {
   try {
-    const { data, error } = await supabase
-      .from('plrs_saas.tenant_users')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-      
-    if (error) {
-      console.error('Error fetching tenant info:', error);
-      return null;
-    }
-    return data;
-  } catch (error) {
-    console.error('Exception in getCurrentUserTenant:', error);
-    return null;
-  }
-};
-
-// Helper function to execute queries in tenant schema
-export const executeTenantQuery = async (schema, query) => {
-  try {
-    // For now, just execute directly in the public schema
-    // since we don't have the proper schema setup yet
     const { data, error } = await supabase.rpc('execute_in_schema', {
       schema_name: schema,
       query_text: query
-    }).catch(err => {
-      console.log("RPC error:", err);
-      return { data: null, error: err };
     });
     
-    return { data, error };
+    if (error) throw error;
+    return { data, error: null };
   } catch (error) {
-    console.error('Error in executeTenantQuery:', error);
+    console.error('Error executing in schema:', error);
     return { data: null, error };
   }
 };
+
+// Create stored procedure for schema creation
+const createSchemaFunction = `
+CREATE OR REPLACE FUNCTION create_tenant_schema(schema_name TEXT)
+RETURNS void AS $$
+BEGIN
+  -- Create schema if it doesn't exist
+  EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I', schema_name);
+  
+  -- Create tables
+  EXECUTE format('
+    CREATE TABLE IF NOT EXISTS %I.players (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      -- other columns...
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )', schema_name);
+    
+  -- Add other tables as needed
+  -- Enable RLS
+  EXECUTE format('ALTER TABLE %I.players ENABLE ROW LEVEL SECURITY', schema_name);
+  
+  -- Create RLS policies
+  EXECUTE format('
+    CREATE POLICY "Enable read for users in same tenant" ON %I.players
+    FOR SELECT USING (
+      EXISTS (
+        SELECT 1 FROM plrs_saas.tenant_users
+        WHERE user_id = auth.uid()
+        AND schema_name = %L
+      )
+    )', schema_name, schema_name);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+`;
+
+// Run this once to create the function
+export const initializeDatabase = async () => {
+  const { error } = await supabase.rpc('create_schema_function', {
+    function_sql: createSchemaFunction
+  });
+  
+  if (error) {
+    console.error('Error creating schema function:', error);
+  }
+};
+```
