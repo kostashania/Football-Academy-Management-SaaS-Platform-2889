@@ -9,7 +9,7 @@ const { FiTarget, FiMail, FiLock, FiEye, FiEyeOff } = FiIcons;
 
 const LoginForm = () => {
   const [email, setEmail] = useState('members@sportiko.eu');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('password123'); // Added default password for demo
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
@@ -17,10 +17,11 @@ const LoginForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+    
     try {
       console.log("Attempting login with:", email);
       const { error } = await signIn(email, password);
+      
       if (error) {
         console.error("Login error:", error);
         toast.error(error.message || "Login failed");
@@ -106,7 +107,10 @@ const LoginForm = () => {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            Email: members@sportiko.eu
+            Email: members@sportiko.eu, Password: password123
+          </p>
+          <p className="text-xs text-gray-500 mt-2">
+            (Demo mode: Will create an account if it doesn't exist)
           </p>
         </div>
       </motion.div>

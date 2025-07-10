@@ -1,24 +1,35 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PlayerCard from '../components/Players/PlayerCard';
 import PlayerForm from '../components/Players/PlayerForm';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const { FiPlus, FiSearch, FiFilter } = FiIcons;
 
 const Players = () => {
+  const navigate = useNavigate();
+  const { userTenant } = useAuth();
   const [players, setPlayers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPosition, setFilterPosition] = useState('all');
 
-  // Sample players data
   useEffect(() => {
+    fetchPlayers();
+  }, [userTenant]);
+
+  const fetchPlayers = async () => {
+    // Load sample players for demo
     const samplePlayers = [
       {
-        id: 1,
+        id: '1',
         first_name: 'John',
         last_name: 'Smith',
         father_name: 'Robert Smith',
@@ -36,7 +47,7 @@ const Players = () => {
         comments: 'Promising young striker with excellent finishing ability.'
       },
       {
-        id: 2,
+        id: '2',
         first_name: 'Alex',
         last_name: 'Johnson',
         father_name: 'Mike Johnson',
@@ -54,7 +65,7 @@ const Players = () => {
         comments: 'Creative midfielder with excellent passing range.'
       },
       {
-        id: 3,
+        id: '3',
         first_name: 'David',
         last_name: 'Garcia',
         father_name: 'Carlos Garcia',
@@ -72,61 +83,76 @@ const Players = () => {
         comments: 'Solid defender with strong aerial ability.'
       }
     ];
+    
     setPlayers(samplePlayers);
-  }, []);
+    setLoading(false);
+  };
 
   const filteredPlayers = players.filter(player => {
     const matchesSearch = `${player.first_name} ${player.last_name}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
-    
-    const matchesPosition = filterPosition === 'all' || 
-      player.position_ids?.includes(filterPosition);
-    
+    const matchesPosition = filterPosition === 'all' || player.position_ids?.includes(filterPosition);
     return matchesSearch && matchesPosition;
   });
 
   const handlePlayerClick = (player) => {
-    setSelectedPlayer(player);
-    setShowForm(true);
+    navigate(`/players/${player.id}`);
   };
 
   const handleSavePlayer = async (playerData) => {
-    if (selectedPlayer) {
-      // Update existing player
-      setPlayers(prev => 
-        prev.map(p => p.id === selectedPlayer.id ? { ...p, ...playerData } : p)
-      );
-    } else {
-      // Add new player
-      const newPlayer = {
-        id: Date.now(),
-        ...playerData
-      };
-      setPlayers(prev => [...prev, newPlayer]);
+    try {
+      if (selectedPlayer) {
+        // Update existing player
+        const updatedPlayer = { ...selectedPlayer, ...playerData, updated_at: new Date().toISOString() };
+        setPlayers(prev => prev.map(p => p.id === selectedPlayer.id ? updatedPlayer : p));
+        toast.success('Player updated successfully');
+      } else {
+        // Add new player
+        const newPlayer = {
+          id: `player-${Date.now()}`,
+          ...playerData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        setPlayers(prev => [...prev, newPlayer]);
+        toast.success('Player created successfully');
+      }
+      
+      setShowForm(false);
+      setSelectedPlayer(null);
+    } catch (error) {
+      console.error('Error saving player:', error);
+      toast.error('Error saving player');
     }
-    
-    setShowForm(false);
+  };
+
+  const handleAddPlayer = () => {
     setSelectedPlayer(null);
+    setShowForm(true);
   };
 
   const handleCancel = () => {
     setShowForm(false);
     setSelectedPlayer(null);
   };
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="spinner"></div>
+      </div>
+    );
+  }
 
   if (showForm) {
     return (
-      <PlayerForm
-        player={selectedPlayer}
-        onSave={handleSavePlayer}
-        onCancel={handleCancel}
-      />
+      <PlayerForm player={selectedPlayer} onSave={handleSavePlayer} onCancel={handleCancel} />
     );
   }
 
   return (
-    <motion.div
+    <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="space-y-6"
@@ -141,7 +167,7 @@ const Players = () => {
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          onClick={() => setShowForm(true)}
+          onClick={handleAddPlayer}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
         >
           <SafeIcon icon={FiPlus} />
@@ -178,11 +204,7 @@ const Players = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPlayers.map((player) => (
-          <PlayerCard
-            key={player.id}
-            player={player}
-            onClick={handlePlayerClick}
-          />
+          <PlayerCard key={player.id} player={player} onClick={handlePlayerClick} />
         ))}
       </div>
 
@@ -193,7 +215,7 @@ const Players = () => {
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No players found</h3>
           <p className="text-gray-600">
-            {searchTerm || filterPosition !== 'all' 
+            {searchTerm || filterPosition !== 'all'
               ? 'Try adjusting your search or filter criteria.'
               : 'Get started by adding your first player.'}
           </p>

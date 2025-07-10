@@ -34,22 +34,36 @@ export const ROLES = {
 export const getCurrentUserTenant = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-
-  const { data } = await supabase
-    .from(`${SHARED_SCHEMA}.tenant_users`)
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
-
-  return data;
+  
+  try {
+    const { data, error } = await supabase
+      .from(`${SHARED_SCHEMA}.tenant_users`)
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching tenant info:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Exception in getCurrentUserTenant:', error);
+    return null;
+  }
 };
 
 // Helper function to execute queries in tenant schema
 export const executeTenantQuery = async (schema, query) => {
-  const { data, error } = await supabase.rpc('execute_in_schema', {
-    schema_name: schema,
-    query_text: query
-  });
-  
-  return { data, error };
+  try {
+    const { data, error } = await supabase.rpc('execute_in_schema', {
+      schema_name: schema,
+      query_text: query
+    });
+    return { data, error };
+  } catch (error) {
+    console.error('Error in executeTenantQuery:', error);
+    return { data: null, error };
+  }
 };
