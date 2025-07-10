@@ -16,11 +16,12 @@ const LoginForm = () => {
     setLoading(true);
     
     try {
+      console.log("Attempting to sign in with:", email);
       await signIn(email, password);
       toast.success('Login successful!');
     } catch (error) {
       console.error('Login error:', error);
-      // Toast error is handled in AuthContext
+      toast.error(error.message || 'Failed to login. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -28,7 +29,7 @@ const LoginForm = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md"
@@ -79,7 +80,6 @@ const LoginForm = () => {
               />
             </div>
           </div>
-
           <div>
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -94,7 +94,10 @@ const LoginForm = () => {
                 </span>
               ) : (
                 <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                  <SafeIcon icon={FiIcons.FiLogIn} className="h-5 w-5 text-blue-500 group-hover:text-blue-400" />
+                  <SafeIcon
+                    icon={FiIcons.FiLogIn}
+                    className="h-5 w-5 text-blue-500 group-hover:text-blue-400"
+                  />
                 </span>
               )}
               {loading ? 'Signing in...' : 'Sign in'}

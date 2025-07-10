@@ -103,21 +103,15 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async (email, password) => {
     try {
-      // Confirm user's email if it's not confirmed yet
-      const { data: userData, error: userError } = await supabase.auth.admin
-        .getUserByEmail(email);
-
-      if (!userError && userData && !userData.email_confirmed_at) {
-        // Attempt to automatically confirm the email
-        try {
-          await supabase.rpc('confirm_user_email', {
-            user_email: email
-          });
-          console.log('Email confirmed automatically');
-        } catch (confirmError) {
-          console.warn('Could not auto-confirm email:', confirmError);
-          // Continue with sign-in attempt anyway
-        }
+      // Try to automatically confirm email if needed
+      try {
+        await supabase.rpc('confirm_user_email', {
+          user_email: email
+        });
+        console.log('Email confirmation attempted');
+      } catch (confirmError) {
+        console.warn('Could not confirm email:', confirmError);
+        // Continue with sign-in attempt anyway
       }
 
       // Sign in the user
@@ -131,7 +125,7 @@ export const AuthProvider = ({ children }) => {
 
       if (error) {
         if (error.message === 'Email not confirmed') {
-          // If the error is about unconfirmed email, try to confirm it
+          // If the error is about unconfirmed email, try to confirm it again
           try {
             await supabase.rpc('confirm_user_email', {
               user_email: email
