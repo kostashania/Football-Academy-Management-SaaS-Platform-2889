@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // Database schema constants
-export const SHARED_SCHEMA = 'plrs_SAAS';
+export const SHARED_SCHEMA = 'plrs_saas';
 export const TENANT_PREFIX = 'club';
 
 // User roles
@@ -30,13 +30,18 @@ export const ROLES = {
 export const getCurrentUserTenant = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-
-  const { data } = await supabase
-    .from(`${SHARED_SCHEMA}.tenant_users`)
+  
+  const { data, error } = await supabase
+    .from('plrs_saas.tenant_users')
     .select('*')
     .eq('user_id', user.id)
     .single();
-
+    
+  if (error) {
+    console.error('Error fetching tenant info:', error);
+    return null;
+  }
+  
   return data;
 };
 
@@ -45,6 +50,9 @@ export const executeTenantQuery = async (schema, query) => {
   const { data, error } = await supabase.rpc('execute_in_schema', {
     schema_name: schema,
     query_text: query
+  }).catch(err => {
+    console.log("RPC error:", err);
+    return { data: null, error: err };
   });
   
   return { data, error };

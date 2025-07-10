@@ -12,8 +12,9 @@ const LoginForm = () => {
   const [password, setPassword] = useState('password123'); // Added default password for demo
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  
   const { signIn } = useAuth();
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -35,7 +36,7 @@ const LoginForm = () => {
       setLoading(false);
     }
   };
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <motion.div
@@ -51,7 +52,7 @@ const LoginForm = () => {
           <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
           <p className="text-gray-600 mt-2">Sign in to your football management account</p>
         </div>
-
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -69,7 +70,7 @@ const LoginForm = () => {
               />
             </div>
           </div>
-
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Password
@@ -93,7 +94,7 @@ const LoginForm = () => {
               </button>
             </div>
           </div>
-
+          
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -104,7 +105,7 @@ const LoginForm = () => {
             {loading ? 'Signing in...' : 'Sign In'}
           </motion.button>
         </form>
-
+        
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Email: members@sportiko.eu, Password: password123

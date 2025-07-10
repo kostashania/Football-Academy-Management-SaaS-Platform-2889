@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, SHARED_SCHEMA } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext({});
 
@@ -20,17 +20,16 @@ export const AuthProvider = ({ children }) => {
   const getCurrentUserTenant = async (userId) => {
     if (!userId) return null;
     console.log("Getting tenant info for user:", userId);
-    
     try {
-      // First check if the schema exists
+      // Query the correct schema and table
       const { data, error } = await supabase
-        .from(`${SHARED_SCHEMA}.tenant_users`)
+        .from('plrs_saas.tenant_users')
         .select('*')
         .eq('user_id', userId)
         .single();
-        
+
       console.log("Tenant data response:", { data, error });
-      
+
       if (error) {
         console.error("Error getting tenant data:", error);
         // For demo purposes, create a mock tenant if not found
@@ -46,7 +45,6 @@ export const AuthProvider = ({ children }) => {
         }
         return null;
       }
-      
       return data;
     } catch (err) {
       console.error("Exception getting tenant data:", err);
@@ -69,7 +67,7 @@ export const AuthProvider = ({ children }) => {
         const { data: { session } } = await supabase.auth.getSession();
         console.log("Initial session:", session?.user?.email);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           const tenantData = await getCurrentUserTenant(session.user.id);
           console.log("Initial tenant data:", tenantData);
@@ -89,7 +87,7 @@ export const AuthProvider = ({ children }) => {
       async (event, session) => {
         console.log("Auth state changed:", event, session?.user?.email);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           const tenantData = await getCurrentUserTenant(session.user.id);
           console.log("Auth change tenant data:", tenantData);
@@ -97,7 +95,6 @@ export const AuthProvider = ({ children }) => {
         } else {
           setUserTenant(null);
         }
-        
         setLoading(false);
       }
     );
@@ -128,7 +125,6 @@ export const AuthProvider = ({ children }) => {
           setUserTenant(tenantData);
         }
       }
-
       return { data, error };
     } catch (error) {
       console.error("Unexpected error during sign in:", error);
@@ -146,7 +142,7 @@ export const AuthProvider = ({ children }) => {
           data: metadata
         }
       });
-      
+
       if (error) {
         console.error("Sign up error:", error);
       } else {
@@ -160,13 +156,22 @@ export const AuthProvider = ({ children }) => {
               schema_name: 'club01_',
               role: 'tenantadmin'
             };
-            setUserTenant(mockTenant);
+            
+            // Try to insert the tenant user record
+            const { error: insertError } = await supabase
+              .from('plrs_saas.tenant_users')
+              .insert(mockTenant);
+              
+            if (!insertError) {
+              setUserTenant(mockTenant);
+            } else {
+              console.error("Error creating tenant user:", insertError);
+            }
           } catch (err) {
             console.error("Error creating tenant user:", err);
           }
         }
       }
-
       return { data, error };
     } catch (error) {
       console.error("Sign up error:", error);
@@ -178,7 +183,6 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log("Attempting to sign out");
       const { error } = await supabase.auth.signOut();
-      
       if (error) {
         console.error("Sign out error:", error);
       } else {
@@ -187,7 +191,6 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         setUserTenant(null);
       }
-      
       return { error };
     } catch (error) {
       console.error("Unexpected error during sign out:", error);
@@ -206,7 +209,6 @@ export const AuthProvider = ({ children }) => {
         schema_name: userData.schema_name,
         created_at: new Date().toISOString()
       };
-      
       return { data: mockUser, error: null };
     } catch (error) {
       console.error("Error creating user:", error);
@@ -216,35 +218,43 @@ export const AuthProvider = ({ children }) => {
 
   const getUsers = async () => {
     try {
-      // Mock users for demo
-      const mockUsers = [
-        {
-          id: 'user-1',
-          user_id: 'auth-user-1',
-          schema_name: 'club01_',
-          role: 'tenantadmin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'user-2',
-          user_id: 'auth-user-2',
-          schema_name: 'club01_',
-          role: 'trainer',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'user-3',
-          user_id: 'auth-user-3',
-          schema_name: 'club01_',
-          role: 'player',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ];
+      // Try to get actual users from database
+      const { data, error } = await supabase
+        .from('plrs_saas.tenant_users')
+        .select('*');
+        
+      if (error || !data || data.length === 0) {
+        // Mock users for demo if no data available
+        const mockUsers = [
+          {
+            id: 'user-1',
+            user_id: 'auth-user-1',
+            schema_name: 'club01_',
+            role: 'tenantadmin',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          {
+            id: 'user-2',
+            user_id: 'auth-user-2',
+            schema_name: 'club01_',
+            role: 'trainer',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          {
+            id: 'user-3',
+            user_id: 'auth-user-3',
+            schema_name: 'club01_',
+            role: 'player',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ];
+        return { data: mockUsers, error: null };
+      }
       
-      return { data: mockUsers, error: null };
+      return { data, error: null };
     } catch (error) {
       console.error("Error getting users:", error);
       return { data: null, error };
@@ -254,14 +264,14 @@ export const AuthProvider = ({ children }) => {
   const updateUser = async (userId, updates) => {
     try {
       // Mock successful update
-      return { 
-        data: { 
-          id: 'user-1', 
-          user_id: userId, 
+      return {
+        data: {
+          id: 'user-1',
+          user_id: userId,
           ...updates,
           updated_at: new Date().toISOString()
-        }, 
-        error: null 
+        },
+        error: null
       };
     } catch (error) {
       console.error("Error updating user:", error);

@@ -3,14 +3,14 @@
 -- =============================================
 
 -- Create the shared schema for global tables
-CREATE SCHEMA IF NOT EXISTS plrs_SAAS;
+CREATE SCHEMA IF NOT EXISTS plrs_saas;
 
 -- =============================================
--- SHARED SCHEMA TABLES (plrs_SAAS)
+-- SHARED SCHEMA TABLES (plrs_saas)
 -- =============================================
 
 -- Tenant users mapping table
-CREATE TABLE plrs_SAAS.tenant_users (
+CREATE TABLE plrs_saas.tenant_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   schema_name TEXT NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE plrs_SAAS.tenant_users (
 );
 
 -- Global advertisements (managed by superadmin)
-CREATE TABLE plrs_SAAS.ads_global (
+CREATE TABLE plrs_saas.ads_global (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   image_url TEXT,
@@ -35,7 +35,7 @@ CREATE TABLE plrs_SAAS.ads_global (
 );
 
 -- Tenant-specific advertisements
-CREATE TABLE plrs_SAAS.ads_tenant (
+CREATE TABLE plrs_saas.ads_tenant (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_schema TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE plrs_SAAS.ads_tenant (
 );
 
 -- Subscriptions table
-CREATE TABLE plrs_SAAS.subscriptions (
+CREATE TABLE plrs_saas.subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id TEXT NOT NULL UNIQUE,
   package_name TEXT NOT NULL,
@@ -68,7 +68,7 @@ CREATE TABLE plrs_SAAS.subscriptions (
 -- Example: CREATE SCHEMA club01_;
 
 -- Function to create tenant schema with all required tables
-CREATE OR REPLACE FUNCTION plrs_SAAS.create_tenant_schema(schema_name TEXT)
+CREATE OR REPLACE FUNCTION plrs_saas.create_tenant_schema(schema_name TEXT)
 RETURNS VOID AS $$
 BEGIN
   -- Create the schema
@@ -85,7 +85,7 @@ BEGIN
   
   -- Insert default positions
   EXECUTE format('
-    INSERT INTO %I.positions (name, short_code) VALUES 
+    INSERT INTO %I.positions (name, short_code) VALUES
     (''Goalkeeper'', ''GK''),
     (''Defender'', ''DEF''),
     (''Midfielder'', ''MID''),
@@ -227,7 +227,6 @@ BEGIN
       changed_by UUID NOT NULL REFERENCES auth.users(id),
       changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     )', schema_name);
-  
 END;
 $$ LANGUAGE plpgsql;
 
@@ -236,62 +235,62 @@ $$ LANGUAGE plpgsql;
 -- =============================================
 
 -- Enable RLS on all tables
-ALTER TABLE plrs_SAAS.tenant_users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE plrs_SAAS.ads_global ENABLE ROW LEVEL SECURITY;
-ALTER TABLE plrs_SAAS.ads_tenant ENABLE ROW LEVEL SECURITY;
-ALTER TABLE plrs_SAAS.subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plrs_saas.tenant_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plrs_saas.ads_global ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plrs_saas.ads_tenant ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plrs_saas.subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to get user's tenant info
-CREATE OR REPLACE FUNCTION plrs_SAAS.get_user_tenant(user_uuid UUID)
+CREATE OR REPLACE FUNCTION plrs_saas.get_user_tenant(user_uuid UUID)
 RETURNS TABLE (schema_name TEXT, role TEXT) AS $$
 BEGIN
   RETURN QUERY
   SELECT tu.schema_name, tu.role
-  FROM plrs_SAAS.tenant_users tu
+  FROM plrs_saas.tenant_users tu
   WHERE tu.user_id = user_uuid;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Helper function to check if user is superadmin
-CREATE OR REPLACE FUNCTION plrs_SAAS.is_superadmin(user_uuid UUID)
+CREATE OR REPLACE FUNCTION plrs_saas.is_superadmin(user_uuid UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
-    SELECT 1 FROM plrs_SAAS.tenant_users 
+    SELECT 1 FROM plrs_saas.tenant_users
     WHERE user_id = user_uuid AND role = 'superadmin'
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- RLS Policies for tenant_users
-CREATE POLICY tenant_users_policy ON plrs_SAAS.tenant_users
-  USING (plrs_SAAS.is_superadmin(auth.uid()) OR user_id = auth.uid());
+CREATE POLICY tenant_users_policy ON plrs_saas.tenant_users
+  USING (plrs_saas.is_superadmin(auth.uid()) OR user_id = auth.uid());
 
 -- RLS Policies for ads_global
-CREATE POLICY ads_global_read_policy ON plrs_SAAS.ads_global
+CREATE POLICY ads_global_read_policy ON plrs_saas.ads_global
   FOR SELECT USING (is_active = true);
 
-CREATE POLICY ads_global_write_policy ON plrs_SAAS.ads_global
-  FOR ALL USING (plrs_SAAS.is_superadmin(auth.uid()));
+CREATE POLICY ads_global_write_policy ON plrs_saas.ads_global
+  FOR ALL USING (plrs_saas.is_superadmin(auth.uid()));
 
 -- RLS Policies for ads_tenant
-CREATE POLICY ads_tenant_policy ON plrs_SAAS.ads_tenant
+CREATE POLICY ads_tenant_policy ON plrs_saas.ads_tenant
   USING (
     tenant_schema IN (
-      SELECT schema_name FROM plrs_SAAS.get_user_tenant(auth.uid())
+      SELECT schema_name FROM plrs_saas.get_user_tenant(auth.uid())
     )
   );
 
 -- RLS Policies for subscriptions
-CREATE POLICY subscriptions_policy ON plrs_SAAS.subscriptions
-  USING (plrs_SAAS.is_superadmin(auth.uid()));
+CREATE POLICY subscriptions_policy ON plrs_saas.subscriptions
+  USING (plrs_saas.is_superadmin(auth.uid()));
 
 -- =============================================
 -- NOTIFICATION FUNCTIONS
 -- =============================================
 
 -- Function to check for expiring documents
-CREATE OR REPLACE FUNCTION plrs_SAAS.check_expiring_documents()
+CREATE OR REPLACE FUNCTION plrs_saas.check_expiring_documents()
 RETURNS TABLE (
   schema_name TEXT,
   player_name TEXT,
@@ -304,9 +303,8 @@ DECLARE
   sql_query TEXT;
 BEGIN
   -- Loop through all tenant schemas
-  FOR tenant_schema IN 
-    SELECT DISTINCT t.schema_name 
-    FROM plrs_SAAS.tenant_users t
+  FOR tenant_schema IN
+    SELECT DISTINCT t.schema_name FROM plrs_saas.tenant_users t
   LOOP
     -- Check EPO record expiry
     sql_query := format('
@@ -315,8 +313,8 @@ BEGIN
              ''EPO Record'' as document_type,
              epo_record_expiry as expiry_date,
              (epo_record_expiry - CURRENT_DATE) as days_until_expiry
-      FROM %I.players 
-      WHERE epo_record_expiry IS NOT NULL 
+      FROM %I.players
+      WHERE epo_record_expiry IS NOT NULL
         AND epo_record_expiry <= CURRENT_DATE + INTERVAL ''30 days''
         AND epo_record_expiry > CURRENT_DATE
     ', tenant_schema, tenant_schema);
@@ -330,8 +328,8 @@ BEGIN
              ''Health Card'' as document_type,
              health_card_expiry as expiry_date,
              (health_card_expiry - CURRENT_DATE) as days_until_expiry
-      FROM %I.players 
-      WHERE health_card_expiry IS NOT NULL 
+      FROM %I.players
+      WHERE health_card_expiry IS NOT NULL
         AND health_card_expiry <= CURRENT_DATE + INTERVAL ''30 days''
         AND health_card_expiry > CURRENT_DATE
     ', tenant_schema, tenant_schema);
@@ -346,21 +344,12 @@ $$ LANGUAGE plpgsql;
 -- =============================================
 
 -- Create sample tenant
-SELECT plrs_SAAS.create_tenant_schema('club01_');
+SELECT plrs_saas.create_tenant_schema('club01_');
 
 -- Insert sample tenant user
-INSERT INTO plrs_SAAS.tenant_users (user_id, schema_name, role)
-VALUES (
-  '00000000-0000-0000-0000-000000000001'::UUID,
-  'club01_',
-  'tenantadmin'
-);
+INSERT INTO plrs_saas.tenant_users (user_id, schema_name, role) VALUES
+  ('00000000-0000-0000-0000-000000000001'::UUID, 'club01_', 'tenantadmin');
 
 -- Insert sample subscription
-INSERT INTO plrs_SAAS.subscriptions (tenant_id, package_name, expires_at, features_json)
-VALUES (
-  'club01_',
-  'Professional',
-  NOW() + INTERVAL '1 year',
-  '{"max_players": 100, "max_staff": 20, "features": ["reports", "analytics", "mobile_app"]}'::JSONB
-);
+INSERT INTO plrs_saas.subscriptions (tenant_id, package_name, expires_at, features_json) VALUES
+  ('club01_', 'Professional', NOW() + INTERVAL '1 year', '{"max_players": 100, "max_staff": 20, "features": ["reports", "analytics", "mobile_app"]}'::JSONB);
