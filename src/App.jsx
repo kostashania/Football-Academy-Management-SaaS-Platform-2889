@@ -1,0 +1,75 @@
+import React from 'react';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import MainLayout from './components/Layout/MainLayout';
+import LoginForm from './components/Auth/LoginForm';
+import Dashboard from './pages/Dashboard';
+import Players from './pages/Players';
+import './App.css';
+
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+  
+  return user ? children : <Navigate to="/login" />;
+};
+
+const AppRoutes = () => {
+  const { user } = useAuth();
+  
+  return (
+    <Routes>
+      <Route 
+        path="/login" 
+        element={user ? <Navigate to="/dashboard" /> : <LoginForm />} 
+      />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/players" element={<Players />} />
+                {/* Add more routes as needed */}
+              </Routes>
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <AppRoutes />
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+            }}
+          />
+        </div>
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
