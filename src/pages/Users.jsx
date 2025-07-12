@@ -12,7 +12,7 @@ const UserForm = ({ user, onSave, onCancel }) => {
     email: user?.email || '',
     password: '',
     role: user?.role || 'user',
-    schema_name: user?.schema_name || 'shared'
+    schema_name: user?.schema_name || 'club01_'
   });
 
   const handleChange = (field, value) => {
@@ -100,11 +100,11 @@ const UserForm = ({ user, onSave, onCancel }) => {
             value={formData.schema_name}
             onChange={(e) => handleChange('schema_name', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="shared or club01_"
+            placeholder="club01_"
             required
           />
           <p className="text-xs text-gray-500 mt-1">
-            Use 'shared' for superadmin or 'club01_' for tenant users
+            Use 'club01_' for tenant users
           </p>
         </div>
 
@@ -195,7 +195,6 @@ const Users = () => {
 
   const handleDeleteUser = async (userId) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
-    
     try {
       const { error } = await deleteUser(userId);
       if (error) {
@@ -223,8 +222,10 @@ const Users = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.schema_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      (user.schema_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (user.role || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -251,22 +252,6 @@ const Users = () => {
           setSelectedUser(null);
         }}
       />
-    );
-  }
-
-  const isSuperAdmin = userTenant?.role === 'superadmin';
-
-  if (!isSuperAdmin) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <SafeIcon icon={FiShield} className="text-red-500 text-2xl" />
-        </div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h2>
-        <p className="text-gray-600">
-          You need superadmin permissions to view and manage users.
-        </p>
-      </div>
     );
   }
 
@@ -298,7 +283,7 @@ const Users = () => {
         <SafeIcon icon={FiSearch} className="absolute left-3 top-3 text-gray-400" />
         <input
           type="text"
-          placeholder="Search by role or tenant..."
+          placeholder="Search by email, role or tenant..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -327,7 +312,7 @@ const Users = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      User ID
+                      Email
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Tenant
@@ -347,7 +332,7 @@ const Users = () => {
                   {filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{user.user_id}</div>
+                        <div className="text-sm text-gray-900">{user.email || user.user_id}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{user.schema_name}</div>
