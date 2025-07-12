@@ -22,9 +22,11 @@ const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <div className="flex justify-center items-center h-screen">
-      <div className="spinner"></div>
-    </div>;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="spinner"></div>
+      </div>
+    );
   }
   
   if (!user) {
@@ -44,12 +46,14 @@ const App = () => {
               <Toaster position="top-right" />
               <Routes>
                 <Route path="/login" element={<LoginForm />} />
-                
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <MainLayout />
-                  </ProtectedRoute>
-                }>
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout />
+                    </ProtectedRoute>
+                  }
+                >
                   <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="players" element={<Players />} />
@@ -60,7 +64,6 @@ const App = () => {
                   <Route path="matches/:id" element={<MatchDetails />} />
                   <Route path="users" element={<Users />} />
                 </Route>
-                
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </MatchProvider>

@@ -25,17 +25,22 @@ export const AuthProvider = ({ children }) => {
         // Get session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) {
-          throw sessionError;
+          console.error("Session error:", sessionError);
+          setLoading(false);
+          return;
         }
 
         if (session?.user) {
+          console.log("Found existing session for user:", session.user.email);
           setUser(session.user);
           // For demo purposes, we'll create a mock tenant
-          setUserTenant({
+          const mockTenant = {
             user_id: session.user.id,
             schema_name: 'club01_',
             role: 'tenantadmin'
-          });
+          };
+          setUserTenant(mockTenant);
+          console.log("Set mock tenant data:", mockTenant);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -49,16 +54,21 @@ export const AuthProvider = ({ children }) => {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
+        
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
           // For demo purposes, we'll create a mock tenant
-          setUserTenant({
+          const mockTenant = {
             user_id: session.user.id,
             schema_name: 'club01_',
             role: 'tenantadmin'
-          });
+          };
+          setUserTenant(mockTenant);
+          console.log("User signed in, set mock tenant:", mockTenant);
           setLoading(false);
         } else if (event === 'SIGNED_OUT') {
+          console.log("User signed out");
           setUser(null);
           setUserTenant(null);
           setLoading(false);
@@ -71,26 +81,23 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const createTenantSchema = async (schemaName) => {
-    console.log('Creating tenant schema:', schemaName);
-    return true; // Mock implementation
-  };
-
   const signIn = async (email, password) => {
     try {
+      console.log("Signing in with email:", email);
       // Sign in the user
-      const { data: { user }, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
-        options: {
-          emailRedirectTo: window.location.origin
-        }
+        password
       });
 
       if (error) {
+        console.error("Sign in error:", error);
         toast.error(error.message);
         throw error;
       }
+
+      const user = data.user;
+      console.log("User signed in successfully:", user.email);
 
       // For demo purposes, we'll create a mock tenant
       const tenantData = {
@@ -101,6 +108,8 @@ export const AuthProvider = ({ children }) => {
 
       setUser(user);
       setUserTenant(tenantData);
+      console.log("Set user and tenant data after login");
+      
       return { user, tenantData };
     } catch (error) {
       console.error('Sign in error:', error);

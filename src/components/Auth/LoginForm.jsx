@@ -4,21 +4,23 @@ import { useAuth } from '../../contexts/AuthContext';
 import SafeIcon from '../../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
     try {
       console.log("Attempting to sign in with:", email);
       await signIn(email, password);
       toast.success('Login successful!');
+      navigate('/dashboard'); // Add explicit navigation
     } catch (error) {
       console.error('Login error:', error);
       toast.error(error.message || 'Failed to login. Please check your credentials.');
@@ -80,6 +82,7 @@ const LoginForm = () => {
               />
             </div>
           </div>
+
           <div>
             <motion.button
               whileHover={{ scale: 1.02 }}
