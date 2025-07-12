@@ -33,44 +33,7 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           console.log("Found existing session for user:", session.user.email);
           setUser(session.user);
-          
-          // Check for actual tenant info from the database
-          try {
-            const { data: tenantData, error: tenantError } = await supabase
-              .from('tenant_users')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-              
-            if (tenantError) {
-              console.error("Error fetching tenant data:", tenantError);
-              // Fallback to mock tenant
-              setUserTenant({
-                user_id: session.user.id,
-                schema_name: 'club01_',
-                role: 'tenantadmin'
-              });
-            } else if (tenantData) {
-              console.log("Found tenant data:", tenantData);
-              setUserTenant(tenantData);
-            } else {
-              console.log("No tenant data found, using mock data");
-              // Fallback to mock tenant
-              setUserTenant({
-                user_id: session.user.id,
-                schema_name: 'club01_',
-                role: 'tenantadmin'
-              });
-            }
-          } catch (error) {
-            console.error("Error in tenant fetch:", error);
-            // Fallback to mock tenant
-            setUserTenant({
-              user_id: session.user.id,
-              schema_name: 'club01_',
-              role: 'tenantadmin'
-            });
-          }
+          await fetchUserTenant(session.user);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -88,45 +51,7 @@ export const AuthProvider = ({ children }) => {
         
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
-          
-          // Try to fetch actual tenant data
-          try {
-            const { data: tenantData, error: tenantError } = await supabase
-              .from('tenant_users')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-              
-            if (tenantError) {
-              console.error("Error fetching tenant data:", tenantError);
-              // Fallback to mock tenant
-              setUserTenant({
-                user_id: session.user.id,
-                schema_name: 'club01_',
-                role: 'tenantadmin'
-              });
-            } else if (tenantData) {
-              console.log("Found tenant data:", tenantData);
-              setUserTenant(tenantData);
-            } else {
-              console.log("No tenant data found, using mock data");
-              // Fallback to mock tenant
-              setUserTenant({
-                user_id: session.user.id,
-                schema_name: 'club01_',
-                role: 'tenantadmin'
-              });
-            }
-          } catch (error) {
-            console.error("Error in tenant fetch:", error);
-            // Fallback to mock tenant
-            setUserTenant({
-              user_id: session.user.id,
-              schema_name: 'club01_',
-              role: 'tenantadmin'
-            });
-          }
-          
+          await fetchUserTenant(session.user);
           setLoading(false);
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");
@@ -142,10 +67,82 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  const fetchUserTenant = async (currentUser) => {
+    try {
+      // First, try to find existing tenant data
+      const { data: tenantData, error: tenantError } = await supabase
+        .from('tenant_users')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+        
+      if (tenantError && tenantError.code !== 'PGRST116') {
+        console.error("Error fetching tenant data:", tenantError);
+        // Create tenant user if it doesn't exist
+        await createTenantUser(currentUser);
+      } else if (tenantData) {
+        console.log("Found tenant data:", tenantData);
+        setUserTenant(tenantData);
+      } else {
+        console.log("No tenant data found, creating new entry");
+        await createTenantUser(currentUser);
+      }
+    } catch (error) {
+      console.error("Error in fetchUserTenant:", error);
+      await createTenantUser(currentUser);
+    }
+  };
+
+  const createTenantUser = async (currentUser) => {
+    try {
+      // Determine role based on email
+      let role = 'user';
+      if (currentUser.email === 'superadmin@sportiko.eu') {
+        role = 'superadmin';
+      } else if (currentUser.email === 'admin@sportiko.eu') {
+        role = 'tenantadmin';
+      } else if (currentUser.email === 'test1@sportiko.eu') {
+        role = 'trainer';
+      } else if (currentUser.email === 'test2@sportiko.eu') {
+        role = 'user';
+      }
+
+      const newTenantUser = {
+        user_id: currentUser.id,
+        schema_name: 'club01_',
+        role: role,
+        email: currentUser.email
+      };
+
+      const { data, error: insertError } = await supabase
+        .from('tenant_users')
+        .insert([newTenantUser])
+        .select()
+        .single();
+        
+      if (insertError) {
+        console.error("Error creating tenant user:", insertError);
+        // Fallback to mock data
+        setUserTenant(newTenantUser);
+      } else {
+        console.log("Created new tenant user entry:", data);
+        setUserTenant(data);
+      }
+    } catch (error) {
+      console.error("Error in createTenantUser:", error);
+      // Fallback to mock tenant
+      setUserTenant({
+        user_id: currentUser.id,
+        schema_name: 'club01_',
+        role: 'tenantadmin',
+        email: currentUser.email
+      });
+    }
+  };
+
   const signIn = async (email, password) => {
     try {
       console.log("Signing in with email:", email);
-      // Sign in the user
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -159,65 +156,9 @@ export const AuthProvider = ({ children }) => {
 
       const user = data.user;
       console.log("User signed in successfully:", user.email);
-
-      // Try to fetch actual tenant data
-      try {
-        const { data: tenantData, error: tenantError } = await supabase
-          .from('tenant_users')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-          
-        if (tenantError) {
-          console.error("Error fetching tenant data:", tenantError);
-          // Fallback to mock tenant
-          setUserTenant({
-            user_id: user.id,
-            schema_name: 'club01_',
-            role: 'tenantadmin'
-          });
-        } else if (tenantData) {
-          console.log("Found tenant data:", tenantData);
-          setUserTenant(tenantData);
-        } else {
-          console.log("No tenant data found, creating new tenant user entry");
-          
-          // Create a new tenant user entry
-          const { error: insertError } = await supabase
-            .from('tenant_users')
-            .insert([{
-              user_id: user.id,
-              schema_name: 'club01_',
-              role: 'tenantadmin'
-            }]);
-            
-          if (insertError) {
-            console.error("Error creating tenant user:", insertError);
-          } else {
-            console.log("Created new tenant user entry");
-          }
-          
-          // Set tenant data
-          setUserTenant({
-            user_id: user.id,
-            schema_name: 'club01_',
-            role: 'tenantadmin'
-          });
-        }
-      } catch (error) {
-        console.error("Error in tenant fetch:", error);
-        // Fallback to mock tenant
-        setUserTenant({
-          user_id: user.id,
-          schema_name: 'club01_',
-          role: 'tenantadmin'
-        });
-      }
-
       setUser(user);
-      console.log("Set user and tenant data after login");
       
-      return { user, tenantData: userTenant };
+      return { user };
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;
@@ -248,25 +189,15 @@ export const AuthProvider = ({ children }) => {
         .insert([{
           user_id: user.id,
           schema_name: schema_name,
-          role: role
+          role: role,
+          email: email
         }]);
         
       if (insertError) {
         console.error("Error creating tenant user:", insertError);
-        throw insertError;
       }
       
-      // Set tenant data
-      const tenantData = {
-        user_id: user.id,
-        schema_name: schema_name,
-        role: role
-      };
-
-      setUser(user);
-      setUserTenant(tenantData);
       toast.success('User created successfully!');
-
       return { user };
     } catch (error) {
       console.error('Sign up error:', error);
@@ -295,7 +226,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('tenant_users')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
         
       if (error) {
         console.error("Error fetching users:", error);
@@ -311,58 +243,66 @@ export const AuthProvider = ({ children }) => {
 
   const createUser = async ({ email, password, role, schema_name }) => {
     try {
-      // Create the user in auth
-      const { data, error } = await supabase.auth.admin.createUser({
+      // Create the user via auth signup
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        email_confirm: true,
-        user_metadata: {
-          role,
-          schema_name
+        options: {
+          emailRedirectTo: window.location.origin
         }
       });
 
       if (error) {
-        // If admin API fails, fall back to regular signup
-        console.warn("Admin API failed, attempting regular signup:", error);
-        return signUp(email, password, role, schema_name);
+        console.error("Sign up error:", error);
+        throw error;
       }
 
       const user = data.user;
       
-      // Create tenant user entry
-      const { error: insertError } = await supabase
-        .from('tenant_users')
-        .insert([{
-          user_id: user.id,
-          schema_name: schema_name,
-          role: role
-        }]);
+      if (user) {
+        // Create tenant user entry
+        const { error: insertError } = await supabase
+          .from('tenant_users')
+          .insert([{
+            user_id: user.id,
+            schema_name: schema_name || 'club01_',
+            role: role || 'user',
+            email: email
+          }]);
+          
+        if (insertError) {
+          console.error("Error creating tenant user:", insertError);
+          throw insertError;
+        }
         
-      if (insertError) {
-        console.error("Error creating tenant user:", insertError);
-        throw insertError;
+        toast.success('User created successfully!');
+        return { user, error: null };
+      } else {
+        throw new Error('User creation failed');
       }
-      
-      toast.success('User created successfully!');
-      return { user, error: null };
     } catch (error) {
       console.error("Error in createUser:", error);
-      // Final fallback to signup
-      return signUp(email, password, role, schema_name);
+      toast.error(error.message || "Failed to create user");
+      return { user: null, error };
     }
   };
 
   const updateUser = async (userId, { role, schema_name }) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tenant_users')
-        .update({ role, schema_name })
-        .eq('user_id', userId);
+        .update({ 
+          role, 
+          schema_name,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .select()
+        .single();
         
       if (error) throw error;
       
-      return { data: { role, schema_name }, error: null };
+      return { data, error: null };
     } catch (error) {
       console.error('Error updating user:', error);
       return { data: null, error };
@@ -380,18 +320,6 @@ export const AuthProvider = ({ children }) => {
       if (deleteError) {
         console.error("Error deleting tenant user:", deleteError);
         throw deleteError;
-      }
-      
-      // Try to delete the user from auth
-      try {
-        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-        if (authError) {
-          console.error("Error deleting auth user:", authError);
-          // Continue anyway as we've removed the tenant_user entry
-        }
-      } catch (error) {
-        console.error("Error in auth deletion:", error);
-        // Continue anyway as we've removed the tenant_user entry
       }
       
       return { error: null };

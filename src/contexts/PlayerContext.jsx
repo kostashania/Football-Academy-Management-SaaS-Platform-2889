@@ -25,110 +25,8 @@ export const PlayerProvider = ({ children }) => {
   }, [userTenant]);
 
   const fetchPlayers = async () => {
-    if (!userTenant?.schema_name) {
-      console.log("No tenant schema available");
-      setLoading(false);
-      return;
-    }
-    
     setLoading(true);
     try {
-      // First, check if the players_x12345 table exists
-      const { data: tableExists, error: tableCheckError } = await supabase
-        .from('players_x12345')
-        .select('id')
-        .limit(1)
-        .maybeSingle();
-      
-      if (tableCheckError && tableCheckError.code !== 'PGRST116') {
-        console.error('Error checking players table:', tableCheckError);
-        useSampleData();
-        return;
-      }
-      
-      // If table doesn't exist, create it
-      if (!tableExists && tableCheckError?.code === 'PGRST116') {
-        console.log('Players table does not exist, creating it');
-        const createTableQuery = `
-          CREATE TABLE IF NOT EXISTS players_x12345 (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            first_name TEXT NOT NULL,
-            last_name TEXT NOT NULL,
-            father_name TEXT,
-            mother_name TEXT,
-            national_id TEXT,
-            passport_number TEXT,
-            nationality TEXT,
-            place_of_birth TEXT,
-            birthday DATE,
-            position_ids TEXT[],
-            email TEXT,
-            phone TEXT,
-            epo_record_number TEXT,
-            epo_record_expiry DATE,
-            health_card_expiry DATE,
-            profile_image_url TEXT,
-            comments TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-          
-          ALTER TABLE players_x12345 ENABLE ROW LEVEL SECURITY;
-          
-          CREATE POLICY "Allow all access" ON players_x12345
-            USING (true)
-            WITH CHECK (true);
-        `;
-        
-        const { error: createError } = await supabase.rpc('execute_query', { 
-          query_text: createTableQuery 
-        });
-        
-        if (createError) {
-          console.error('Error creating players table:', createError);
-          useSampleData();
-          return;
-        }
-        
-        // Insert sample data
-        const insertQuery = `
-          INSERT INTO players_x12345 (
-            first_name, last_name, father_name, mother_name, 
-            national_id, nationality, place_of_birth, birthday,
-            position_ids, email, phone, epo_record_number,
-            epo_record_expiry, health_card_expiry, comments
-          ) VALUES 
-          (
-            'John', 'Smith', 'Robert Smith', 'Mary Smith',
-            '123456789', 'USA', 'New York', '2005-03-15',
-            ARRAY['fwd'], 'john.smith@email.com', '+1234567890', 'EPO123',
-            '2024-12-31', '2024-06-30', 'Promising young striker with excellent finishing ability.'
-          ),
-          (
-            'Alex', 'Johnson', 'Mike Johnson', 'Sarah Johnson',
-            '987654321', 'Canada', 'Toronto', '2004-08-22',
-            ARRAY['mid'], 'alex.johnson@email.com', '+1987654321', 'EPO456',
-            '2024-11-15', '2024-09-30', 'Creative midfielder with excellent passing range.'
-          ),
-          (
-            'David', 'Garcia', 'Carlos Garcia', 'Elena Garcia',
-            '456789123', 'Spain', 'Madrid', '2006-01-10',
-            ARRAY['def'], 'david.garcia@email.com', '+34123456789', 'EPO789',
-            '2025-02-28', '2024-12-15', 'Solid defender with strong aerial ability.'
-          );
-        `;
-        
-        const { error: insertError } = await supabase.rpc('execute_query', { 
-          query_text: insertQuery 
-        });
-        
-        if (insertError) {
-          console.error('Error inserting sample players:', insertError);
-          useSampleData();
-          return;
-        }
-      }
-      
       // Fetch players from the table
       const { data, error } = await supabase
         .from('players_x12345')
@@ -137,11 +35,12 @@ export const PlayerProvider = ({ children }) => {
       
       if (error) {
         console.error('Error fetching players:', error);
+        // Use sample data as fallback
         useSampleData();
         return;
       }
       
-      setPlayers(data);
+      setPlayers(data || []);
       
     } catch (error) {
       console.error('Error in fetchPlayers:', error);
@@ -221,18 +120,24 @@ export const PlayerProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('players_x12345')
-        .insert([playerData])
+        .insert([{
+          ...playerData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
         .select()
         .single();
       
       if (error) throw error;
       
       setPlayers(prev => [data, ...prev]);
+      toast.success('Player created successfully!');
       return { data, error: null };
     } catch (error) {
       console.error('Error in createPlayer:', error);
+      toast.error('Failed to create player');
       
-      // Fallback to client-side implementation if database operation fails
+      // Fallback to client-side implementation
       const newPlayer = {
         id: `player-${Date.now()}`,
         ...playerData,
@@ -260,9 +165,11 @@ export const PlayerProvider = ({ children }) => {
       if (error) throw error;
       
       setPlayers(prev => prev.map(p => p.id === id ? data : p));
+      toast.success('Player updated successfully!');
       return { data, error: null };
     } catch (error) {
       console.error('Error in updatePlayer:', error);
+      toast.error('Failed to update player');
       
       // Fallback to client-side implementation
       const updatedPlayer = {
@@ -286,9 +193,11 @@ export const PlayerProvider = ({ children }) => {
       if (error) throw error;
       
       setPlayers(prev => prev.filter(p => p.id !== id));
+      toast.success('Player deleted successfully!');
       return { error: null };
     } catch (error) {
       console.error('Error in deletePlayer:', error);
+      toast.error('Failed to delete player');
       
       // Fallback to client-side implementation
       setPlayers(prev => prev.filter(p => p.id !== id));
