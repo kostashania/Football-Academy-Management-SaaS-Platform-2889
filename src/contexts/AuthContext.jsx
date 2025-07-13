@@ -69,6 +69,8 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserTenant = async (currentUser) => {
     try {
+      console.log("Fetching tenant data for user:", currentUser.id);
+      
       // First, try to find existing tenant data
       const { data: tenantData, error: tenantError } = await supabase
         .from('tenant_users')
@@ -76,10 +78,17 @@ export const AuthProvider = ({ children }) => {
         .eq('user_id', currentUser.id)
         .maybeSingle();
         
-      if (tenantError && tenantError.code !== 'PGRST116') {
+      if (tenantError) {
         console.error("Error fetching tenant data:", tenantError);
-        // Create tenant user if it doesn't exist
-        await createTenantUser(currentUser);
+        
+        if (tenantError.code === 'PGRST116') {
+          // No rows found, create new user
+          console.log("No tenant data found, creating new entry");
+          await createTenantUser(currentUser);
+        } else {
+          // Other error, create fallback
+          await createTenantUser(currentUser);
+        }
       } else if (tenantData) {
         console.log("Found tenant data:", tenantData);
         setUserTenant(tenantData);
@@ -95,6 +104,8 @@ export const AuthProvider = ({ children }) => {
 
   const createTenantUser = async (currentUser) => {
     try {
+      console.log("Creating tenant user for:", currentUser.email);
+      
       // Determine role based on email
       let role = 'user';
       if (currentUser.email === 'superadmin@sportiko.eu') {
@@ -114,6 +125,8 @@ export const AuthProvider = ({ children }) => {
         email: currentUser.email
       };
 
+      console.log("Attempting to create tenant user:", newTenantUser);
+
       const { data, error: insertError } = await supabase
         .from('tenant_users')
         .insert([newTenantUser])
@@ -123,6 +136,7 @@ export const AuthProvider = ({ children }) => {
       if (insertError) {
         console.error("Error creating tenant user:", insertError);
         // Fallback to mock data
+        console.log("Using fallback tenant data");
         setUserTenant(newTenantUser);
       } else {
         console.log("Created new tenant user entry:", data);
@@ -131,12 +145,14 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Error in createTenantUser:", error);
       // Fallback to mock tenant
-      setUserTenant({
+      const fallbackTenant = {
         user_id: currentUser.id,
         schema_name: 'club01_',
         role: 'tenantadmin',
         email: currentUser.email
-      });
+      };
+      console.log("Using fallback tenant data:", fallbackTenant);
+      setUserTenant(fallbackTenant);
     }
   };
 

@@ -7,18 +7,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ROLES } from '../../config/supabase';
 
 const {
-  FiUsers,
-  FiCalendar,
-  FiTrendingUp,
-  FiFileText,
-  FiTarget,
-  FiSettings,
-  FiHome,
-  FiMessageSquare,
-  FiAward,
-  FiClock,
-  FiBarChart2,
-  FiUser
+  FiUsers, FiCalendar, FiTrendingUp, FiFileText, FiTarget, FiSettings, 
+  FiHome, FiMessageSquare, FiAward, FiClock, FiBarChart2, FiUser
 } = FiIcons;
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -33,9 +23,9 @@ const Sidebar = ({ isOpen, onClose }) => {
         { icon: FiUsers, label: 'Users', path: '/users' }
       ];
     }
-    
+
     console.log("Building menu for role:", userTenant.role);
-    
+
     const baseItems = [
       { icon: FiHome, label: 'Dashboard', path: '/dashboard' },
     ];
